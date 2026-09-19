@@ -91,6 +91,7 @@ export default function App() {
     localStorage.setItem('buildflow-theme', theme);
   }, [theme]);
 
+
   const visibleEvents = useMemo(() => {
     const seen = new Set<string>();
     return s.events.filter((event): event is Exclude<AgentEvent, { type: 'raw' }> => {
@@ -176,7 +177,7 @@ export default function App() {
 
     <main className="main-content">
       <header className="topbar"><div className="breadcrumb">워크스페이스 <Icon name="chevron" size={14}/> <strong>{s.current?.name || '대시보드'}</strong></div><div className="topbar-actions"><div className="topbar-badge"><span/> 워크스페이스 활성</div><button type="button" className="theme-toggle" aria-label={`${theme === 'dark' ? '라이트' : '다크'} 모드로 전환`} title={`${theme === 'dark' ? '라이트' : '다크'} 모드`} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}><Icon name={theme === 'dark' ? 'sun' : 'moon'} size={15}/><span>{theme === 'dark' ? 'Light' : 'Dark'}</span></button></div></header>
-      <div className="content-wrap">
+      <div className={`content-wrap ${s.current ? 'project-mode' : ''}`}>
         <div className="page-intro"><div><div className="eyebrow">BUILDFLOW / WORKSPACE</div><h1>{s.current ? s.current.name : 'Build software with intent.'}</h1><p>{s.current ? '요청, 실행 상태, 버전을 한 곳에서 관리합니다.' : '요구사항을 설명하면 실행 가능한 로컬 앱으로 구현합니다.'}</p></div><button type="button" className="new-project-button" onClick={() => { s.setCurrent(); s.setVersions([]); setText(''); setAdvanced(false); }}><Icon name="plus" size={18}/> New project</button></div>
 
         {!s.current && <>
