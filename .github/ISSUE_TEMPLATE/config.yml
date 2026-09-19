@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/buildflow-labs/buildflow/discussions
+    about: Ask for help or discuss a broad product idea.
+  - name: Security report
+    url: https://github.com/buildflow-labs/buildflow/security/advisories/new
+    about: Report a vulnerability privately.
