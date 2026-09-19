@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { AgentEvent } from '../shared/events/agent-event';
 import type { Project } from '../shared/models/project';
 import { useAppStore } from './stores/app-store';
+import brandIcon from './assets/buildflow.svg';
 
-type IconName = 'grid' | 'plus' | 'arrow' | 'external' | 'spark' | 'clock' | 'check' | 'code' | 'chevron' | 'refresh' | 'monitor' | 'phone';
+type IconName = 'grid' | 'plus' | 'arrow' | 'external' | 'spark' | 'clock' | 'check' | 'code' | 'chevron' | 'refresh' | 'monitor' | 'phone' | 'sun' | 'moon';
 
 function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
   const paths: Record<IconName, React.ReactNode> = {
@@ -19,6 +20,8 @@ function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
     refresh: <><path d="M20 11a8 8 0 1 0-2 6"/><path d="M20 5v6h-6"/></>,
     monitor: <><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 22h8m-4-4v4"/></>,
     phone: <><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></>,
+    sun: <><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></>,
+    moon: <path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z"/>,
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
@@ -50,6 +53,11 @@ function ProjectCard({ project, selected, onClick }: { project: Project; selecte
 
 export default function App() {
   const s = useAppStore();
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('buildflow-theme');
+    if (saved === 'light' || saved === 'dark') return saved;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
   const [text, setText] = useState('');
   const [advanced, setAdvanced] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -76,6 +84,12 @@ export default function App() {
       if (store.current?.id === projectId || !store.current) store.addEvent(event);
     });
   }, []);
+
+  useLayoutEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+    localStorage.setItem('buildflow-theme', theme);
+  }, [theme]);
 
   const visibleEvents = useMemo(() => {
     const seen = new Set<string>();
@@ -149,7 +163,7 @@ export default function App() {
 
   return <div className="app-shell">
     <aside className="sidebar">
-      <div className="brand"><span className="brand-mark"><Icon name="spark" size={23}/></span><span className="brand-name">buildflow<span className="brand-period">.</span></span></div>
+      <div className="brand"><span className="brand-mark"><img src={brandIcon} alt=""/></span><span className="brand-name">buildflow<span className="brand-period">.</span></span></div>
       <div className="workspace-switch"><span className="workspace-avatar">BF</span><span><strong>Local workspace</strong><small>Private · On this device</small></span><Icon name="chevron" size={16}/></div>
       <div className="sidebar-label">WORKSPACE</div>
       <button type="button" className="nav-item active" onClick={() => s.setCurrent()}><Icon name="grid" size={18}/> 대시보드</button>
@@ -161,7 +175,7 @@ export default function App() {
     </aside>
 
     <main className="main-content">
-      <header className="topbar"><div className="breadcrumb">워크스페이스 <Icon name="chevron" size={14}/> <strong>{s.current?.name || '대시보드'}</strong></div><div className="topbar-badge"><span/> 워크스페이스 활성</div></header>
+      <header className="topbar"><div className="breadcrumb">워크스페이스 <Icon name="chevron" size={14}/> <strong>{s.current?.name || '대시보드'}</strong></div><div className="topbar-actions"><div className="topbar-badge"><span/> 워크스페이스 활성</div><button type="button" className="theme-toggle" aria-label={`${theme === 'dark' ? '라이트' : '다크'} 모드로 전환`} title={`${theme === 'dark' ? '라이트' : '다크'} 모드`} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}><Icon name={theme === 'dark' ? 'sun' : 'moon'} size={15}/><span>{theme === 'dark' ? 'Light' : 'Dark'}</span></button></div></header>
       <div className="content-wrap">
         <div className="page-intro"><div><div className="eyebrow">BUILDFLOW / WORKSPACE</div><h1>{s.current ? s.current.name : 'Build software with intent.'}</h1><p>{s.current ? '요청, 실행 상태, 버전을 한 곳에서 관리합니다.' : '요구사항을 설명하면 실행 가능한 로컬 앱으로 구현합니다.'}</p></div><button type="button" className="new-project-button" onClick={() => { s.setCurrent(); s.setVersions([]); setText(''); setAdvanced(false); }}><Icon name="plus" size={18}/> New project</button></div>
 

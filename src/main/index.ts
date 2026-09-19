@@ -16,7 +16,7 @@ import { IPC } from '../shared/contracts/ipc.js';
 
 const processes = new ProcessManager(); let db: MetadataDatabase | undefined; let quitting = false;
 async function boot() {
-  const window = new BrowserWindow({ width: 1120, height: 780, backgroundColor: '#f8fafc', icon: join(import.meta.dirname, '../../assets/buildflow.png'), webPreferences: { preload: join(import.meta.dirname, '../preload/index.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
+  const window = new BrowserWindow({ width: 1120, height: 780, backgroundColor: '#0b1120', icon: join(import.meta.dirname, '../../assets/buildflow.png'), webPreferences: { preload: join(import.meta.dirname, '../preload/index.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
   await window.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent('<!doctype html><html lang="ko"><meta charset="utf-8"><title>Buildflow</title><body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#f8fafc;color:#26334d;font:16px system-ui,sans-serif"><div>Buildflow가 프로그램을 준비하고 있습니다…</div></body></html>')}`);
   const projectsRoot = join(app.getPath('userData'), 'projects');
   const projects = new ProjectManager(projectsRoot); await projects.init();
