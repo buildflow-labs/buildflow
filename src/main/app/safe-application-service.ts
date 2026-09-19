@@ -7,6 +7,8 @@ import type { ProjectManager } from '../projects/project-manager.js';
 import type { RuntimeManager } from '../runtime/runtime-manager.js';
 import type { ValidationManager } from '../validation/validation-manager.js';
 import type { WorkspaceTransaction, WorkspaceTransactionManager } from '../workspaces/workspace-transaction.js';
+import { access } from 'node:fs/promises';
+import { join } from 'node:path';
 
 const initialPrompt = (request: string) => `Create the requested application in the current workspace.
 Follow AGENTS.md and the files under .agent/.
@@ -72,6 +74,13 @@ export class SafeApplicationService {
     const project = await this.projects.getProject(projectId);
     if (project.status !== 'failed') throw new Error('실패한 프로젝트만 다시 검증할 수 있습니다.');
     try {
+      const hasApplication = await access(join(project.workspacePath, 'package.json')).then(() => true).catch(() => false);
+      const needsGeneration = !hasApplication || this.db.list(projectId).length === 0;
+      if (needsGeneration) {
+        this.send(projectId, { type: 'analyzing', message: '중단된 생성을 처음부터 복구하고 있습니다.' });
+        await this.harness.inject(project.workspacePath, project.description);
+        await this.runAgent(project.id, project.workspacePath, `${initialPrompt(project.description)}\n\nA previous attempt may have left partial files. Inspect them, repair or complete the application, install dependencies, and finish validation.`);
+      }
       this.send(projectId, { type: 'testing' });
       await this.validation.validate(project.workspacePath, (stream, data) => this.send(projectId, { type: 'raw', stream, data }));
       if (this.db.list(projectId).length === 0) {

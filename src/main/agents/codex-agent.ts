@@ -1,4 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import { access, readdir } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import type { AgentEvent } from '../../shared/events/agent-event.js';
 import { captureProcess, ProcessManager } from '../processes/process-manager.js';
 import type { AgentProjectContext, AgentSession, CodingAgent } from './coding-agent.js';
@@ -12,14 +15,32 @@ class AsyncQueue<T> {
 
 export class CodexAgent implements CodingAgent {
   readonly id = 'codex'; private sessions = new Map<string, string>();
+  private executable?: Promise<string>;
   constructor(private processes: ProcessManager) {}
-  async isInstalled() { try { return (await captureProcess(this.processes, { executable: 'codex', args: ['--version'], cwd: process.cwd(), timeoutMs: 5_000 })).exitCode === 0; } catch { return false; } }
-  async version() { const r = await captureProcess(this.processes, { executable: 'codex', args: ['--version'], cwd: process.cwd(), timeoutMs: 5_000 }); return r.exitCode === 0 ? r.stdout.trim() : undefined; }
+  private resolveExecutable() {
+    return this.executable ??= (async () => {
+      if (process.env.CODEX_PATH) return process.env.CODEX_PATH;
+      if (process.platform === 'win32') {
+        const extensions = join(homedir(), '.vscode', 'extensions');
+        const entries = await readdir(extensions).catch(() => []);
+        const candidates = entries
+          .filter((name) => name.startsWith('openai.chatgpt-'))
+          .sort().reverse()
+          .map((name) => join(extensions, name, 'bin', 'windows-x86_64', 'codex.exe'));
+        for (const candidate of candidates) {
+          if (await access(candidate).then(() => true).catch(() => false)) return candidate;
+        }
+      }
+      return 'codex';
+    })();
+  }
+  async isInstalled() { try { return (await captureProcess(this.processes, { executable: await this.resolveExecutable(), args: ['--version'], cwd: process.cwd(), timeoutMs: 5_000 })).exitCode === 0; } catch { return false; } }
+  async version() { const r = await captureProcess(this.processes, { executable: await this.resolveExecutable(), args: ['--version'], cwd: process.cwd(), timeoutMs: 5_000 }); return r.exitCode === 0 ? r.stdout.trim() : undefined; }
   async startSession(context: AgentProjectContext) { const session = { ...context, id: randomUUID() }; this.sessions.set(session.id, ''); return session; }
   async *execute(session: AgentSession, prompt: string): AsyncIterable<AgentEvent> {
     const queue = new AsyncQueue<AgentEvent>(); queue.push({ type: 'analyzing', message: '요청을 확인하고 있습니다.' });
     const args = ['--approve-for-me', 'exec', '--json', '--skip-git-repo-check', '--sandbox', 'workspace-write', '--cd', session.workspacePath, prompt];
-    const proc = this.processes.spawn({ executable: 'codex', args, cwd: session.workspacePath, projectId: session.projectId, timeoutMs: 30 * 60_000 }); this.sessions.set(session.id, proc.id);
+    const proc = this.processes.spawn({ executable: await this.resolveExecutable(), args, cwd: session.workspacePath, projectId: session.projectId, timeoutMs: 30 * 60_000 }); this.sessions.set(session.id, proc.id);
     let pending = ''; let editingSent = false; let failure: Error | undefined;
     proc.on('stdout', (chunk: string) => {
       queue.push({ type: 'raw', stream: 'stdout', data: chunk });
