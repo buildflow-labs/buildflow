@@ -4,7 +4,7 @@ import electron from 'electron';
 const environment = { ...process.env };
 delete environment.ELECTRON_RUN_AS_NODE;
 
-const child = spawn(electron, ['.'], {
+const child = spawn(electron, ['.', ...process.argv.slice(2)], {
   env: environment,
   stdio: 'inherit',
   windowsHide: false,

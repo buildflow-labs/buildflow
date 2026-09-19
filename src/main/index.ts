@@ -22,15 +22,6 @@ async function boot() {
   const projects = new ProjectManager(projectsRoot); await projects.init();
   db = new MetadataDatabase(join(app.getPath('userData'), 'metadata.sqlite'));
   const agent = new CodexAgent(processes), runtime = new RuntimeManager(processes, projects);
-  for (const project of await projects.listProjects()) {
-    if (project.status !== 'running') continue;
-    try {
-      const info = await runtime.start(project.id);
-      await projects.updateProject(project.id, { appUrl: info.url });
-    } catch {
-      await projects.setStatus(project.id, 'failed');
-    }
-  }
   const service = new SafeApplicationService(projects, new HarnessManager(), agent, new ValidationManager(processes), new GitManager(processes), runtime, db, new WorkspaceTransactionManager(), (projectId, event) => { void appendFile(join(projectsRoot, projectId, 'logs', 'agent.jsonl'), JSON.stringify(event) + String.fromCharCode(10)); window.webContents.send(IPC.event, { projectId, event }); }, async (_projectId, paths) => {
     const details = paths.slice(0, 8).join('\n') + (paths.length > 8 ? `\n외 ${paths.length - 8}개` : '');
     const result = await dialog.showMessageBox(window, { type: 'warning', title: '저장된 데이터 변경', message: '저장된 데이터가 변경됩니다.', detail: `변경 대상:\n${details}\n\n계속 진행할까요?`, buttons: ['취소', '변경 허용'], defaultId: 0, cancelId: 0, noLink: true });
@@ -38,5 +29,33 @@ async function boot() {
   });
   registerIpc({ app: service, projects, runtime, agent, db });
   if (process.env.VITE_DEV_SERVER_URL) await window.loadURL(process.env.VITE_DEV_SERVER_URL); else await window.loadFile(join(import.meta.dirname, '../renderer/index.html'));
+
+  void (async () => {
+    for (const project of await projects.listProjects()) {
+      if (project.status !== 'running') continue;
+      try {
+        const info = await runtime.start(project.id);
+        await projects.updateProject(project.id, { appUrl: info.url });
+      } catch {
+        await projects.setStatus(project.id, 'failed');
+      }
+    }
+  })();
 }
-app.whenReady().then(boot); app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); }); app.on('before-quit', (event) => { if (quitting) return; quitting = true; event.preventDefault(); void processes.dispose().finally(() => { db?.close(); app.exit(0); }); });
+const singleInstance = app.requestSingleInstanceLock();
+if (!singleInstance) app.quit();
+else {
+  app.on('second-instance', () => {
+    const window = BrowserWindow.getAllWindows()[0];
+    if (!window) return;
+    if (window.isMinimized()) window.restore();
+    window.show();
+    window.focus();
+  });
+  app.whenReady().then(boot).catch(async (error) => {
+    const message = error instanceof Error ? error.stack || error.message : String(error);
+    await dialog.showMessageBox({ type: 'error', title: 'Buildflow 시작 오류', message: 'Buildflow를 시작하지 못했습니다.', detail: message });
+    app.quit();
+  });
+}
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); }); app.on('before-quit', (event) => { if (quitting) return; quitting = true; event.preventDefault(); void processes.dispose().finally(() => { db?.close(); app.exit(0); }); });
