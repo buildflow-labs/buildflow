@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { appendFile, mkdir, readFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, realpath } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import type { Version } from '../../shared/models/project.js';
 import { captureProcess, ProcessManager } from '../processes/process-manager.js';
@@ -8,7 +8,10 @@ export class GitManager {
   constructor(private processes: ProcessManager) {}
   private async git(cwd: string, args: string[]) { const r = await captureProcess(this.processes, { executable: 'git', args, cwd, timeoutMs: 60_000 }); if (r.exitCode !== 0) throw new Error(r.stderr || `git ${args[0]} failed`); return r.stdout.trim(); }
   private async hasOwnRepository(cwd: string) {
-    try { return resolve(await this.git(cwd, ['rev-parse', '--show-toplevel'])).toLowerCase() === resolve(cwd).toLowerCase(); }
+    try {
+      const [root, workspace] = await Promise.all([realpath(resolve(await this.git(cwd, ['rev-parse', '--show-toplevel']))), realpath(resolve(cwd))]);
+      return root.toLowerCase() === workspace.toLowerCase();
+    }
     catch { return false; }
   }
   private async ignoreRuntimeData(cwd: string) {

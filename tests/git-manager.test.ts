@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
@@ -20,7 +20,7 @@ it('creates a project repository even when its parent is a Git repository', asyn
     const git = new GitManager(processes);
     await git.ensureClean(project);
     const version = await git.commit('project-id', project, 'Create app');
-    expect(resolve(execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: project, encoding: 'utf8' }).trim()).toLowerCase()).toBe(resolve(project).toLowerCase());
+    expect((await realpath(resolve(execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: project, encoding: 'utf8' }).trim()))).toLowerCase()).toBe((await realpath(resolve(project))).toLowerCase());
     expect(execFileSync('git', ['rev-parse', 'HEAD'], { cwd: project, encoding: 'utf8' }).trim()).toBe(version.commitHash);
     expect(() => execFileSync('git', ['rev-parse', '--verify', 'HEAD'], { cwd: root, stdio: 'ignore' })).toThrow();
   } finally { await processes.dispose(); }
