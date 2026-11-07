@@ -36,10 +36,10 @@
                     "package:win":  "npm run build \u0026\u0026 electron-builder --win nsis --publish never"
                 },
     "dependencies":  {
-                         "@tailwindcss/vite":  "4.3.3",
-                         "tailwindcss":  "4.3.3",
-                         "zod":  "4.6.5",
-                         "zustand":  "5.0.15"
+                         "@tailwindcss/vite":  "4.3.4",
+                         "tailwindcss":  "4.3.4",
+                         "zod":  "4.6.7",
+                         "zustand":  "5.0.16"
                      },
     "devDependencies":  {
                             "@types/node":  "26.6.1",
